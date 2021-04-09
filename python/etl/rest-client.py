@@ -41,7 +41,7 @@ def get_usage(data: dict):
 
     # make api call
     response = requests.get(url, headers=headers, verify=False, params=data).json()
-    print(response)
+ 
     try:
         # we expect nextToken in the api response
         next_token = response['nextToken']
