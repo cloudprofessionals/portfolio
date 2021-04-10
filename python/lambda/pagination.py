@@ -18,8 +18,11 @@ def apply_filter(where_clause):
     """
     This function is for constructing sql query statement needed to be passed to Athena API. It takes where_clause
     parameter which is combination of two mandatory params service_end,service_start and any additional optional
-    parameters. :param  where_clause: sql WHERE clause statement to help filter data :type where_clause: str :return:
-    return full sql query statement :rtype: str
+    parameters.
+    :param  where_clause: sql WHERE clause statement to help filter data
+    :type where_clause: str
+    :return: return full sql query statement
+    :rtype: str
     """
     query = f'''select start_date,end_date,account_id, 
 cost_categor, product_code, 
@@ -246,7 +249,7 @@ date('{event["queryStringParameters"]["service_end"]}')"""
 
 def handler(event, context):
     """
-    This is the lambda function that call our main function get_usage_data
+    This is the lambda function that call our main function process_athena_data
     :param event: carries input or request parameters
     :param context: provides information about the invocation,function adn execution environment
     :return: return data
