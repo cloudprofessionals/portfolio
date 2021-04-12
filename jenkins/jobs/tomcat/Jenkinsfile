@@ -82,7 +82,7 @@ pipeline {
         }
       }
     }
-    //This stage is used for setting environment variables depends on your need
+    //This stage is used for setting environment variables, it depends on your need
     stage('Set Environment'){
         environment {
           DEV_URL = "domain-dev.io"
@@ -145,7 +145,7 @@ pipeline {
           }
         }
     }
-    //stage to build tomcat and 
+    //stage to build war file using ansible
     stage('Build') {
       steps {
       wrap([$class: 'AnsiColorBuildWrapper', colorMapName: "xterm"]) {
@@ -161,7 +161,7 @@ pipeline {
       }
     }
     }
-    //stage copy war file build from build stage to two instances through ssh and then copy the war to tomcat running inside docker
+    //stage copy war file built from build stage to two instances through ssh and then copy the war file to tomcat running inside docker container
     stage('Deploy') {
       when {
         expression {
@@ -202,6 +202,7 @@ done'''
     }
    }
   }
+  //send slack message about job status 
   post {
     always {
       
