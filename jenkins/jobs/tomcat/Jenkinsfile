@@ -1,0 +1,211 @@
+
+
+import groovy.json.JsonOutput
+
+// function to send slack message on job status
+def sendSlackMessage() {
+  jenkins_image = ":jenkins:"
+  beer_image = ":beer:"
+  long epoch = System.currentTimeMillis()/1000
+  def BUILD_COLORS = ['SUCCESS': 'good', 'FAILURE': 'danger', 'UNSTABLE': 'danger', 'ABORTED': 'danger']
+  
+  def slack = JsonOutput.toJson(
+      [
+            icon_emoji: jenkins_image,
+            attachments: [[
+              title: "Jenkins Job Alert - ${currentBuild.currentResult}",
+              text:  "Job ${env.JOB_NAME} build ${env.BUILD_NUMBER}  ${beer_image}\n Details at: ${env.BUILD_URL}console",
+              fallback: "ICDC Jenkins Build",
+              color: "${BUILD_COLORS[currentBuild.currentResult]}",
+              footer: "icdc devops",
+              ts: epoch,
+              mrkdwn_in: ["footer", "title"],
+           ]]
+        ]
+    )
+    try {
+        sh "curl -X POST -H 'Content-type: application/json' --data '${slack}'  '${SLACK_URL}'"
+    } catch (err) {
+        echo "${err} Slack notify failed"
+    }
+}
+
+pipeline {
+
+  agent {
+    node {
+      label 'docker-maven'
+    }
+  }
+  //parameters to select repo tag and environment to deploy 
+  parameters {
+    gitParameter(branchFilter: 'origin/(.*)', 
+            defaultValue: 'Develop', 
+            name: 'Tag', 
+            type: 'PT_BRANCH_TAG',
+            quickFilterEnabled: false, 
+            selectedValue: 'DEFAULT', 
+            sortMode: 'NONE', 
+            tagFilter: '*', 
+            useRepository: 'https://github.com//your/repo')
+    extendedChoice( 
+            name: 'Environment', 
+            defaultValue: 'dev', 
+            description: 'Choose the environment to build', 
+            type: 'PT_SINGLE_SELECT',
+            value: 'dev,qa,stage,prod' )
+  }
+  //Poll for auto deployment every 15min Monday-Friday
+   triggers { 
+     pollSCM('H/15 * * * 1-5') 
+    }
+  options {
+    timestamps()
+  }
+  tools { 
+    maven 'Default' 
+    jdk 'Default' 
+  }
+  stages {
+    stage('checkout'){
+      steps {
+        checkout([$class: 'GitSCM', 
+          branches: [[name: "${params.Tag}"]], 
+          doGenerateSubmoduleConfigurations: 
+          false, extensions: [], submoduleCfg: [], 
+          userRemoteConfigs: 
+          [[url: 'https://github.com/your/repo']]])
+
+        dir('script-repo'){
+          git branch: 'master',
+            url: 'https://github.com//your/script-repo'
+        }
+      }
+    }
+    //This stage is used for setting environment variables depends on your need
+    stage('Set Environment'){
+        environment {
+          DEV_URL = "domain-dev.io"
+          QA_URL = "domain-qa.io"
+          STAGE_URL = "domain-stage.io"
+          PROD_URL = "domain.io" 
+          VERSION = "${params.Tag}"
+          SLACK_URL = "${SLACK_URL}"
+        }
+        steps {
+          script {
+            switch("${params.Environment}") {
+              case "dev":
+                withCredentials([file(credentialsId: 'dev_env_file', variable: 'secret_file')]) {
+                  sh "cp ${secret_file} ${WORKSPACE}/src/main/frontend/.env"
+                  sh "cd ${WORKSPACE}/src/main/frontend/ && sed -i 's,tag_version,${VERSION},g' .env"
+                  env.TOMCAT01_IP = "${TOMCAT01_DEV_IP}"
+                  env.TOMCAT02_IP = "${TOMCAT02_DEV_IP}"
+                  env.DB_IP    = "${DB_DEV_IP}"
+                }
+              break
+              case "qa":
+                withCredentials([file(credentialsId: 'qa_env_file', variable: 'secret_file')]) {
+                  sh "cp ${secret_file} ${WORKSPACE}/src/main/frontend/.env"
+                  sh "cd ${WORKSPACE}/src/main/frontend/ && sed -i 's,tag_version,${VERSION},g' .env"
+                  env.TOMCAT01_IP = "${TOMCAT01_QA_IP}"
+                  env.TOMCAT02_IP = "${TOMCAT02_QA_IP}"
+                  env.DB_IP    = "${DB_QA_IP}"
+                }
+              break
+              case "stage":
+                withCredentials([file(credentialsId: 'stage_env_file', variable: 'secret_file')]) {
+                  sh "cp ${secret_file} ${WORKSPACE}/src/main/frontend/.env"
+                  sh "cd ${WORKSPACE}/src/main/frontend/ && sed -i 's,tag_version,${VERSION},g' .env"
+                  env.TOMCAT01_IP = "${TOMCAT01_STAGE_IP}"
+                  env.TOMCAT02_IP = "${TOMCAT02_STAGE_IP}"
+                  env.DB_IP    = "${DB_STAGE_IP}"
+                }
+              break
+              case "prod":
+                withCredentials([file(credentialsId: 'prod_env_file', variable: 'secret_file')]) {
+                  sh "cp ${secret_file} ${WORKSPACE}/src/main/frontend/.env"
+                  sh "cd ${WORKSPACE}/src/main/frontend/ && sed -i 's,tag_version,${VERSION},g' .env"
+                  env.TOMCAT01_IP = "${TOMCAT01_PROD_IP}"
+                  env.TOMCAT02_IP = "${TOMCAT02_PROD_IP}"
+                  env.DB_IP    = "${DB_PROD_IP}"
+                }
+              break
+              //specify default for auto building to dev environment
+              default:
+                withCredentials([file(credentialsId: 'dev_env_file', variable: 'secret_file')]) {
+                  sh "cp ${secret_file} ${WORKSPACE}/src/main/frontend/.env"
+                  sh "cd ${WORKSPACE}/src/main/frontend/ && sed -i 's,tag_version,${VERSION},g' .env"
+                  env.TOMCAT01_IP = "${TOMCAT01_DEV_IP}"
+                  env.TOMCAT02_IP = "${TOMCAT02_DEV_IP}"
+                  env.DB_IP    = "${DB_DEV_IP}"
+                }
+              break
+            }
+          }
+        }
+    }
+    //stage to build tomcat and 
+    stage('Build') {
+      steps {
+      wrap([$class: 'AnsiColorBuildWrapper', colorMapName: "xterm"]) {
+        withCredentials([string(credentialsId: 'authorization_bearer', variable: 'BEARER'), 
+                usernamePassword(credentialsId: 'DB_user', passwordVariable: 'DB_PASSWORD', usernameVariable: 'DB_USER')
+              ]) {
+
+          ansiblePlaybook( 
+                  playbook: '${WORKSPACE}/script-repo/ansible/build.yml',
+                  inventory: '${WORKSPACE}/script-repo/ansible/hosts',
+                  colorized: true) 
+        }
+      }
+    }
+    }
+    //stage copy war file build from build stage to two instances through ssh and then copy the war to tomcat running inside docker
+    stage('Deploy') {
+      when {
+        expression {
+          currentBuild.result == null || currentBuild.result == 'SUCCESS' 
+        }
+      }
+      steps {
+        ansiColor('xterm') {
+          withCredentials([sshUserPrivateKey(credentialsId: 'ssh_user', keyFileVariable: 'ssh_key', passphraseVariable: '', usernameVariable: 'deployer')]) {
+sh label: '', script: '''
+
+for server in $TOMCAT02_IP $TOMCAT01_IP;
+do
+pushd target
+scp -i $deployer_key -o StrictHostKeyChecking=no ROOT.war $deployer@${server}:
+popd
+ssh -i $deployer_key -T -o StrictHostKeyChecking=no $deployer@${server} << EOF
+sudo docker rm -f k9dc
+cd /local/content/docker
+sudo docker pull your/docker/container:latest
+sudo docker-compose up -d &
+wait %1
+sleep 20
+docker cp -a ~/ROOT.war some-docker-container:/usr/local/tomcat/webapps
+rm -rf ~/ROOT.war
+EOF
+done'''
+          }
+        }
+      }
+    }
+   //stage to load graph schema to db
+   stage('schema'){
+    steps {
+      withCredentials([string(credentialsId: 'authorization_bearer', variable: 'BEARER')]){
+        sh "curl -X POST http://${DB_IP}:7474/graphql/idl/ -H 'Accept: application/json' -H 'Authorization: ${BEARER}' -d @src/main/resources/schema.graphql"
+      }
+    }
+   }
+  }
+  post {
+    always {
+      
+      sendSlackMessage()
+    }
+  }
+}
