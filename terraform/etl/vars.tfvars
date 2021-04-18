@@ -4,9 +4,9 @@ tags = {
   Project = "etl-demo"
   Environment = "demo"
 }
-region = "us-east-1"
+region = "change me"
 #specify your aws credential profile. Note this is not IAM role but rather profile configured during AWS CLI installation
-profile = "cloud"
+profile = "change me"
 #specify the name you will like to call this project.
 stack_name = "etl-demo"
 #specify the name of the API Gateway
@@ -22,5 +22,5 @@ api_usage_plan_name = "etl_api_plan"
 #provide the name of the iam role for this project
 iam_role_name = "etl_iam_role"
 #specify the name of the bucket to store sample etl files
-athena_s3_bucket = "etl-athena-demo-bucket"
+athena_s3_bucket = "change me"
 athena_db_name = "etl_demo_db"
