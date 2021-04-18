@@ -1,8 +1,3 @@
----
-sort: 3
-title: Bento Framework on AWS
----
-
 # Deploying AWS ETL
 This is a User documentation on provisioning and deploying sample etl on AWS
 
