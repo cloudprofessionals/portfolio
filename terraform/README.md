@@ -1,5 +1,5 @@
 # Deploying AWS ETL
-This is a User documentation on provisioning and deploying sample ETL on AWS. In this workflow, we demonstrate how to leverage serverless architecture with Big data(Athena) on AWS platform to analyze data and transform them to useful information. A sample big data is stored in an S3 bucket and we use Athena to query this data through lambda invocation via Rest API Gateway. 
+This is an User Documentation on provisioning and deploying sample ETL on AWS. In the steps below, I demonstrate how to leverage serverless architecture with Big data(Athena) on AWS platform to analyze data and transform them into useful information. A sample big data is stored in an S3 bucket,and queried through Athena via lambda function invocation whenever  Rest API Gateway.  
 
 ## A. Introduction
 The purpose of this guide is to provide instructions on how to provision and deploy AWS ETL. This guide assumes that the User has an operating account with Amazon Web Services
@@ -21,7 +21,7 @@ The code in this demo will create the following resources via Terraform:
 ![Architecture](etl/etl_arch.png)
 
 ## D. Pre-requisites
-Ensure you have the following tools installed and configured before proceeding. All instructions provided here assumes you have unix-like environment
+Ensure you have the following tools installed and configured before proceeding. All instructions provided here assumes you have unix-like environment.
 
 #### a) AWS CLI
 * Follow the instructions on official Amazon Web site to [install](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) AWS CLI on your local machine using platform instruction applicable to you.
@@ -37,8 +37,6 @@ Please ensure you have aws credential configured for your environment [aws crede
 
 #### d) Python3 and Virtual Environment
 * Follow the instructions on the official [Python](https://www.python.org/downloads/) site to install python3 and [venv](https://docs.python.org/3/library/venv.html) on your local workstation.
-
-
 
 
 ## E. Installations
